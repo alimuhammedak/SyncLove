@@ -1,10 +1,10 @@
 /**
- * Main App component - the shell of the Couple Portal.
- * Wraps the app with providers and renders the dashboard.
+ * Main App component - the shell of the Couple Portal (SyncLove).
+ * Wraps the app with providers and renders the dashboard or login.
  */
 import { Suspense, lazy } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { AuthProvider, useAuth } from './features/auth'
+import { AuthProvider, useAuth, LoginPage } from './features/auth'
 import { Heart } from 'lucide-react'
 import './index.css'
 
@@ -39,14 +39,18 @@ function LoadingScreen() {
  * App content that requires auth context.
  */
 function AppContent() {
-  const { isLoading } = useAuth()
+  const { isLoading, isAuthenticated } = useAuth()
 
   if (isLoading) {
     return <LoadingScreen />
   }
 
-  // TODO: Add login screen when user is not authenticated
-  // For now, show dashboard regardless of auth state (for development)
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage />
+  }
+
+  // Show dashboard when authenticated
   return (
     <Suspense fallback={<LoadingScreen />}>
       <Dashboard />

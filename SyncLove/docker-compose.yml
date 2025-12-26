@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: synclove-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Bls1912*
+      POSTGRES_DB: SyncLoveDB
+    ports:
+      - "5432:5432"
+    volumes:
+      - synclove_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  synclove_postgres_data:

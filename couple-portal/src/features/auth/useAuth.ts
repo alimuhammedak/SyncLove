@@ -1,11 +1,9 @@
-'use client'
-
 import { useContext } from 'react'
 import { AuthContext } from './AuthContext'
 import type { AuthContextType } from './types'
 
 /**
- * Hook to access authentication context.
+ * Hook to access authentication state and methods.
  */
 export function useAuth(): AuthContextType {
     const context = useContext(AuthContext)
