@@ -82,7 +82,7 @@ export default function LobbyRoom({ sessionId, onGameStart, onLeave }: LobbyRoom
         await startGame();
     };
 
-    const canStartGame = isHost && players.length >= 2;
+    const canStartGame = isHost && (players?.length || 0) >= 2;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex items-center justify-center p-6">
@@ -131,9 +131,9 @@ export default function LobbyRoom({ sessionId, onGameStart, onLeave }: LobbyRoom
 
                     <div className="space-y-3">
                         <AnimatePresence>
-                            {players.map((player, index) => (
+                            {(players || []).map((player, index) => (
                                 <motion.div
-                                    key={player.PlayerId}
+                                    key={player.playerId}
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: 20 }}
@@ -143,26 +143,24 @@ export default function LobbyRoom({ sessionId, onGameStart, onLeave }: LobbyRoom
                                     <div className="flex items-center gap-3">
                                         {/* Avatar */}
                                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                                            {player.DisplayName.charAt(0).toUpperCase()}
+                                            {player.displayName?.charAt(0).toUpperCase() || '?'}
                                         </div>
-
                                         {/* Name & Host badge */}
                                         <div>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-white font-medium">{player.DisplayName}</span>
-                                                {player.IsHost && (
+                                                <span className="text-white font-medium">{player.displayName}</span>
+                                                {player.isHost && (
                                                     <Crown size={14} className="text-yellow-400" />
                                                 )}
                                             </div>
-                                            {player.IsHost && (
+                                            {player.isHost && (
                                                 <span className="text-xs text-yellow-400/70">Oda Sahibi</span>
                                             )}
                                         </div>
                                     </div>
-
                                     {/* Voice indicator */}
                                     <div className="flex items-center gap-2">
-                                        {remoteUsers.includes(player.PlayerId) || player.PlayerId === hostId ? (
+                                        {remoteUsers.includes(player.playerId) || player.playerId === hostId ? (
                                             <Volume2 size={16} className="text-green-400" />
                                         ) : (
                                             <VolumeX size={16} className="text-white/30" />
@@ -212,8 +210,8 @@ export default function LobbyRoom({ sessionId, onGameStart, onLeave }: LobbyRoom
                             onClick={toggleMute}
                             disabled={!isVoiceConnected}
                             className={`p-3 rounded-xl transition-colors ${isMuted
-                                    ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                    : 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                : 'bg-green-500/20 text-green-400 border border-green-500/30'
                                 } disabled:opacity-50 disabled:cursor-not-allowed`}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}

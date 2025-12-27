@@ -58,12 +58,16 @@ export const tokenStorage = {
         localStorage.setItem(TOKEN_KEY, auth.accessToken);
         localStorage.setItem(REFRESH_TOKEN_KEY, auth.refreshToken);
         localStorage.setItem(TOKEN_EXPIRY_KEY, auth.accessTokenExpires);
+        localStorage.setItem('synclove_user_id', auth.userId);
     },
+
+    getUserId: (): string | null => localStorage.getItem('synclove_user_id'),
 
     clearTokens: (): void => {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(REFRESH_TOKEN_KEY);
         localStorage.removeItem(TOKEN_EXPIRY_KEY);
+        localStorage.removeItem('synclove_user_id');
     },
 
     isTokenExpired: (): boolean => {

@@ -28,10 +28,10 @@ export interface PlayerScore {
 }
 
 export interface PlayerInfo {
-    PlayerId: string;
-    DisplayName: string;
-    IsHost: boolean;
-    IsReady: boolean;
+    playerId: string;
+    displayName: string;
+    isHost: boolean;
+    isReady: boolean;
 }
 
 export interface RoundState {
@@ -151,15 +151,16 @@ export const useEmotionGame = create<EmotionGameState>((set, get) => ({
             // Set up event listeners
             newConnection.on('PlayerJoinedEmotion', (data) => {
                 set(state => {
-                    const existingPlayer = state.players.find(p => p.PlayerId === data.PlayerId);
+                    const players = state.players || [];
+                    const existingPlayer = players.find(p => p.playerId === data.playerId);
                     if (existingPlayer) return state;
 
                     return {
-                        players: [...state.players, {
-                            PlayerId: data.PlayerId,
-                            DisplayName: data.DisplayName,
-                            IsHost: data.IsHost,
-                            IsReady: false
+                        players: [...players, {
+                            playerId: data.playerId,
+                            displayName: data.displayName,
+                            isHost: data.isHost,
+                            isReady: false
                         }],
                     };
                 });
@@ -167,8 +168,9 @@ export const useEmotionGame = create<EmotionGameState>((set, get) => ({
 
             newConnection.on('PlayerLeftEmotion', (data) => {
                 set(state => ({
-                    players: state.players.filter(p => p.PlayerId !== data.PlayerId),
-                    hostId: data.NewHostId || state.hostId,
+                    players: (state.players || []).filter(p => p.playerId !== data.playerId),
+                    hostId: data.newHostId || state.hostId,
+                    isHost: data.newHostId === (tokenStorage.getUserId() || '')
                 }));
             });
 
@@ -183,13 +185,13 @@ export const useEmotionGame = create<EmotionGameState>((set, get) => ({
             newConnection.on('RoundStarted', (data) => {
                 set({
                     currentRound: {
-                        roundId: data.RoundId,
+                        roundId: data.roundId,
                         emotion: null,
-                        category: data.Category,
-                        difficulty: data.Difficulty,
-                        drawerId: data.DrawerId,
-                        timeLimit: data.TimeLimit,
-                        timeRemaining: data.TimeLimit,
+                        category: data.category,
+                        difficulty: data.difficulty,
+                        drawerId: data.drawerId,
+                        timeLimit: data.timeLimit,
+                        timeRemaining: data.timeLimit,
                         guesses: [],
                         isComplete: false,
                         winnerId: null,
@@ -211,7 +213,7 @@ export const useEmotionGame = create<EmotionGameState>((set, get) => ({
 
             newConnection.on('ReceiveDrawingStroke', (data) => {
                 set(state => ({
-                    receivedStrokes: [...state.receivedStrokes, data.Stroke],
+                    receivedStrokes: [...state.receivedStrokes, data.stroke],
                 }));
             });
 
@@ -235,9 +237,9 @@ export const useEmotionGame = create<EmotionGameState>((set, get) => ({
                     currentRound: state.currentRound ? {
                         ...state.currentRound,
                         isComplete: true,
-                        winnerId: data.WinnerId,
+                        winnerId: data.winnerId,
                     } : null,
-                    scores: data.Scores,
+                    scores: data.scores || [],
                     emotionToDraw: null,
                 }));
             });
@@ -246,17 +248,17 @@ export const useEmotionGame = create<EmotionGameState>((set, get) => ({
                 set({ receivedStrokes: [] });
             });
 
-            newConnection.on('EmotionGameState', (state) => {
-                const userId = tokenStorage.getUserId?.() || '';
+            newConnection.on('EmotionGameState', (data) => {
+                const userId = tokenStorage.getUserId() || '';
                 set({
-                    players: state.Players,
-                    hostId: state.HostId,
-                    isHost: state.HostId === userId,
-                    scores: state.Scores,
-                    roundNumber: state.RoundNumber,
-                    totalRounds: state.TotalRounds,
-                    currentRound: state.CurrentRound,
-                    isGameStarted: state.IsGameStarted,
+                    players: data.players || [],
+                    hostId: data.hostId,
+                    isHost: data.hostId === userId,
+                    scores: data.scores || [],
+                    roundNumber: data.roundNumber || 0,
+                    totalRounds: data.totalRounds || 0,
+                    currentRound: data.currentRound,
+                    isGameStarted: data.isGameStarted || false,
                 });
             });
 
