@@ -27,6 +27,13 @@ export interface PlayerScore {
     resonancePoints: number;
 }
 
+export interface PlayerInfo {
+    PlayerId: string;
+    DisplayName: string;
+    IsHost: boolean;
+    IsReady: boolean;
+}
+
 export interface RoundState {
     roundId: string;
     emotion: string | null; // null for guessing players
@@ -55,7 +62,10 @@ export interface EmotionGameState {
 
     // Session
     sessionId: string | null;
-    players: string[];
+    players: PlayerInfo[];
+    hostId: string | null;
+    isHost: boolean;
+    isGameStarted: boolean;
 
     // Current round
     currentRound: RoundState | null;
@@ -79,6 +89,7 @@ export interface EmotionGameState {
     disconnect: () => Promise<void>;
     joinGame: (sessionId: string) => Promise<void>;
     leaveGame: () => Promise<void>;
+    startGame: () => Promise<void>;
     getEmotionOptions: () => Promise<void>;
     startRound: (emotion: string) => Promise<void>;
     sendStroke: (stroke: DrawingStroke) => Promise<void>;
@@ -95,7 +106,10 @@ const initialState = {
     isConnecting: false,
     connectionError: null,
     sessionId: null,
-    players: [],
+    players: [] as PlayerInfo[],
+    hostId: null,
+    isHost: false,
+    isGameStarted: false,
     currentRound: null,
     emotionOptions: [],
     isDrawer: false,
@@ -136,16 +150,25 @@ export const useEmotionGame = create<EmotionGameState>((set, get) => ({
 
             // Set up event listeners
             newConnection.on('PlayerJoinedEmotion', (data) => {
-                set(state => ({
-                    players: state.players.includes(data.PlayerId)
-                        ? state.players
-                        : [...state.players, data.PlayerId],
-                }));
+                set(state => {
+                    const existingPlayer = state.players.find(p => p.PlayerId === data.PlayerId);
+                    if (existingPlayer) return state;
+
+                    return {
+                        players: [...state.players, {
+                            PlayerId: data.PlayerId,
+                            DisplayName: data.DisplayName,
+                            IsHost: data.IsHost,
+                            IsReady: false
+                        }],
+                    };
+                });
             });
 
             newConnection.on('PlayerLeftEmotion', (data) => {
                 set(state => ({
-                    players: state.players.filter(p => p !== data.PlayerId),
+                    players: state.players.filter(p => p.PlayerId !== data.PlayerId),
+                    hostId: data.NewHostId || state.hostId,
                 }));
             });
 
@@ -153,16 +176,20 @@ export const useEmotionGame = create<EmotionGameState>((set, get) => ({
                 set({ emotionOptions: options });
             });
 
+            newConnection.on('GameStarted', () => {
+                set({ isGameStarted: true });
+            });
+
             newConnection.on('RoundStarted', (data) => {
                 set({
                     currentRound: {
-                        roundId: data.roundId,
+                        roundId: data.RoundId,
                         emotion: null,
-                        category: data.category,
-                        difficulty: data.difficulty,
-                        drawerId: data.drawerId,
-                        timeLimit: data.timeLimit,
-                        timeRemaining: data.timeLimit,
+                        category: data.Category,
+                        difficulty: data.Difficulty,
+                        drawerId: data.DrawerId,
+                        timeLimit: data.TimeLimit,
+                        timeRemaining: data.TimeLimit,
                         guesses: [],
                         isComplete: false,
                         winnerId: null,
@@ -184,7 +211,7 @@ export const useEmotionGame = create<EmotionGameState>((set, get) => ({
 
             newConnection.on('ReceiveDrawingStroke', (data) => {
                 set(state => ({
-                    receivedStrokes: [...state.receivedStrokes, data.stroke],
+                    receivedStrokes: [...state.receivedStrokes, data.Stroke],
                 }));
             });
 
@@ -208,9 +235,9 @@ export const useEmotionGame = create<EmotionGameState>((set, get) => ({
                     currentRound: state.currentRound ? {
                         ...state.currentRound,
                         isComplete: true,
-                        winnerId: data.winnerId,
+                        winnerId: data.WinnerId,
                     } : null,
-                    scores: data.scores,
+                    scores: data.Scores,
                     emotionToDraw: null,
                 }));
             });
@@ -220,12 +247,16 @@ export const useEmotionGame = create<EmotionGameState>((set, get) => ({
             });
 
             newConnection.on('EmotionGameState', (state) => {
+                const userId = tokenStorage.getUserId?.() || '';
                 set({
-                    players: state.players,
-                    scores: state.scores,
-                    roundNumber: state.roundNumber,
-                    totalRounds: state.totalRounds,
-                    currentRound: state.currentRound,
+                    players: state.Players,
+                    hostId: state.HostId,
+                    isHost: state.HostId === userId,
+                    scores: state.Scores,
+                    roundNumber: state.RoundNumber,
+                    totalRounds: state.TotalRounds,
+                    currentRound: state.CurrentRound,
+                    isGameStarted: state.IsGameStarted,
                 });
             });
 
@@ -260,7 +291,14 @@ export const useEmotionGame = create<EmotionGameState>((set, get) => ({
         if (!connection || !sessionId) return;
 
         await connection.invoke('LeaveEmotionGame', sessionId);
-        set({ sessionId: null, players: [], currentRound: null });
+        set({ sessionId: null, players: [], currentRound: null, isGameStarted: false });
+    },
+
+    startGame: async () => {
+        const { connection, sessionId, isHost } = get();
+        if (!connection || !sessionId || !isHost) return;
+
+        await connection.invoke('StartGame', sessionId);
     },
 
     getEmotionOptions: async () => {

@@ -130,6 +130,7 @@ builder.Services.AddSignalR(options =>
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGameService, GameService>();
+builder.Services.AddSingleton<AgoraTokenService>();
 
 // =============================================================================
 // API

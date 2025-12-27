@@ -70,11 +70,23 @@ public record PlayerScoreDto(
 /// </summary>
 public record EmotionGameStateDto(
     Guid SessionId,
-    List<Guid> Players,
+    List<PlayerInfoDto> Players,
+    Guid? HostId,
     EmotionRoundDto? CurrentRound,
     List<PlayerScoreDto> Scores,
     int RoundNumber,
-    int TotalRounds
+    int TotalRounds,
+    bool IsGameStarted
+);
+
+/// <summary>
+/// Player information for lobby display.
+/// </summary>
+public record PlayerInfoDto(
+    Guid PlayerId,
+    string DisplayName,
+    bool IsHost,
+    bool IsReady
 );
 
 /// <summary>

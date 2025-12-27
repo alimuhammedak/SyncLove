@@ -22,33 +22,101 @@ public class EmotionGameHub : Hub
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, sessionId);
         var userId = GetUserId();
+        var displayName = GetDisplayName();
+        bool isHost = false;
 
         lock (StateLock)
         {
             if (!GameStates.TryGetValue(sessionId, out var state))
             {
-                state = new EmotionGameState { SessionId = sessionId };
+                // First player becomes the host
+                state = new EmotionGameState 
+                { 
+                    SessionId = sessionId,
+                    HostId = userId
+                };
                 GameStates[sessionId] = state;
+                isHost = true;
             }
 
-            if (!state.Players.Contains(userId))
+            // Check if player already exists
+            var existingPlayer = state.Players.Find(p => p.PlayerId == userId);
+            if (existingPlayer == null)
             {
-                state.Players.Add(userId);
+                // Check 2-player limit
+                if (state.Players.Count >= 2)
+                {
+                    // Room is full
+                    Clients.Caller.SendAsync("Error", "Oda dolu (maksimum 2 oyuncu)");
+                    return;
+                }
+
+                isHost = state.HostId == userId;
+                state.Players.Add(new PlayerInfo
+                {
+                    PlayerId = userId,
+                    DisplayName = displayName,
+                    IsHost = isHost,
+                    IsReady = false
+                });
             }
         }
 
+        // Notify all players about the new player
         await Clients.Group(sessionId).SendAsync("PlayerJoinedEmotion", new
         {
             SessionId = sessionId,
             PlayerId = userId,
+            DisplayName = displayName,
+            IsHost = isHost,
             JoinedAt = DateTime.UtcNow
         });
 
-        // Send current state to joining player
+        // Send current state to the joining player
         if (GameStates.TryGetValue(sessionId, out var currentState))
         {
             await Clients.Caller.SendAsync("EmotionGameState", currentState.ToDto());
         }
+    }
+
+    /// <summary>
+    /// Start the game (host only).
+    /// </summary>
+    public async Task StartGame(string sessionId)
+    {
+        var userId = GetUserId();
+
+        lock (StateLock)
+        {
+            if (!GameStates.TryGetValue(sessionId, out var state))
+            {
+                return;
+            }
+
+            // Only host can start
+            if (state.HostId != userId)
+            {
+                Clients.Caller.SendAsync("Error", "Sadece oda sahibi oyunu başlatabilir");
+                return;
+            }
+
+            // Need at least 2 players
+            if (state.Players.Count < 2)
+            {
+                Clients.Caller.SendAsync("Error", "Oyun başlatmak için en az 2 oyuncu gerekli");
+                return;
+            }
+
+            state.IsGameStarted = true;
+        }
+
+        // Notify all players that the game has started
+        await Clients.Group(sessionId).SendAsync("GameStarted", new
+        {
+            SessionId = sessionId,
+            StartedAt = DateTime.UtcNow,
+            StartedBy = userId
+        });
     }
 
     /// <summary>
@@ -58,15 +126,24 @@ public class EmotionGameHub : Hub
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, sessionId);
         var userId = GetUserId();
+        Guid? newHostId = null;
 
         lock (StateLock)
         {
             if (GameStates.TryGetValue(sessionId, out var state))
             {
-                state.Players.Remove(userId);
+                state.Players.RemoveAll(p => p.PlayerId == userId);
+                
                 if (state.Players.Count == 0)
                 {
                     GameStates.Remove(sessionId);
+                }
+                else if (state.HostId == userId)
+                {
+                    // Transfer host to next player
+                    state.HostId = state.Players[0].PlayerId;
+                    state.Players[0].IsHost = true;
+                    newHostId = state.HostId;
                 }
             }
         }
@@ -75,6 +152,7 @@ public class EmotionGameHub : Hub
         {
             SessionId = sessionId,
             PlayerId = userId,
+            NewHostId = newHostId,
             LeftAt = DateTime.UtcNow
         });
     }
@@ -293,7 +371,7 @@ public class EmotionGameHub : Hub
             {
                 return state.Scores.Values.Select(s => new PlayerScoreDto(
                     s.PlayerId,
-                    $"Player {s.PlayerId.ToString()[..8]}",
+                    state.Players.Find(p => p.PlayerId == s.PlayerId)?.DisplayName ?? $"Player {s.PlayerId.ToString()[..8]}",
                     s.TotalScore,
                     s.CorrectGuesses,
                     s.ResonancePoints
@@ -308,32 +386,51 @@ public class EmotionGameHub : Hub
         var userIdClaim = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return Guid.TryParse(userIdClaim, out var userId) ? userId : Guid.Empty;
     }
+
+    private string GetDisplayName()
+    {
+        var nameClaim = Context.User?.FindFirst(ClaimTypes.Name)?.Value 
+            ?? Context.User?.FindFirst("name")?.Value;
+        return nameClaim ?? $"Player {GetUserId().ToString()[..8]}";
+    }
 }
 
 // Internal state classes
 internal class EmotionGameState
 {
     public required string SessionId { get; set; }
-    public List<Guid> Players { get; set; } = [];
+    public Guid HostId { get; set; }
+    public List<PlayerInfo> Players { get; set; } = [];
     public Dictionary<Guid, PlayerScore> Scores { get; set; } = [];
     public RoundState? CurrentRound { get; set; }
     public int RoundNumber { get; set; }
     public int TotalRounds { get; set; } = 5;
+    public bool IsGameStarted { get; set; }
 
     public EmotionGameStateDto ToDto() => new(
         Guid.TryParse(SessionId, out var id) ? id : Guid.Empty,
-        Players,
+        Players.Select(p => new PlayerInfoDto(p.PlayerId, p.DisplayName, p.IsHost, p.IsReady)).ToList(),
+        HostId,
         CurrentRound?.ToDto(),
         Scores.Values.Select(s => new PlayerScoreDto(
             s.PlayerId,
-            $"Player {s.PlayerId.ToString()[..8]}",
+            Players.Find(p => p.PlayerId == s.PlayerId)?.DisplayName ?? $"Player {s.PlayerId.ToString()[..8]}",
             s.TotalScore,
             s.CorrectGuesses,
             s.ResonancePoints
         )).ToList(),
         RoundNumber,
-        TotalRounds
+        TotalRounds,
+        IsGameStarted
     );
+}
+
+internal class PlayerInfo
+{
+    public Guid PlayerId { get; set; }
+    public string DisplayName { get; set; } = "";
+    public bool IsHost { get; set; }
+    public bool IsReady { get; set; }
 }
 
 internal class RoundState
