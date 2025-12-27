@@ -22,7 +22,9 @@ export const API_ENDPOINTS = {
     },
     hubs: {
         game: `${API_BASE_URL}/hubs/game`,
+        emotionGame: `${API_BASE_URL}/hubs/emotion-game`,
     },
+    baseUrl: API_BASE_URL,
 } as const;
 
 export { API_BASE_URL };

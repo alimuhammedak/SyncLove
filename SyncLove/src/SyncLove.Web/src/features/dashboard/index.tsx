@@ -3,6 +3,7 @@
  * Shows navigation to games, memory book, and couple status.
  */
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Gamepad2, BookHeart, Heart, Settings } from 'lucide-react'
 
@@ -43,6 +44,8 @@ function MenuItem({ icon, label, description, color, onClick }: MenuItemProps) {
  * Main Dashboard component.
  */
 export default function Dashboard() {
+    const navigate = useNavigate()
+
     return (
         <div className="min-h-screen bg-[var(--color-background)] px-4 py-8">
             {/* Header */}
@@ -71,7 +74,7 @@ export default function Dashboard() {
                     label="Games"
                     description="Play together, compete, and have fun!"
                     color="#6366f1"
-                    onClick={() => console.log('Navigate to games')}
+                    onClick={() => navigate('/games')}
                 />
 
                 <MenuItem
@@ -79,7 +82,7 @@ export default function Dashboard() {
                     label="Memory Book"
                     description="Your shared history and achievements"
                     color="#f472b6"
-                    onClick={() => console.log('Navigate to memory book')}
+                    onClick={() => navigate('/memory-book')}
                 />
 
                 <MenuItem
@@ -87,7 +90,7 @@ export default function Dashboard() {
                     label="Settings"
                     description="Customize your portal"
                     color="#94a3b8"
-                    onClick={() => console.log('Navigate to settings')}
+                    onClick={() => navigate('/settings')}
                 />
             </motion.div>
 
