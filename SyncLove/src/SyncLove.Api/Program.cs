@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SyncLove.Api.Hubs;
+using SyncLove.Api.Middleware;
 using SyncLove.Application.Interfaces;
 using SyncLove.Infrastructure.Data;
 using SyncLove.Infrastructure.Identity;
@@ -157,6 +158,10 @@ if (app.Environment.IsDevelopment())
         options.RoutePrefix = "swagger";
     });
 }
+
+// Security and debugging middleware
+app.UseGlobalExceptionHandler();
+app.UseRequestLogging();
 
 app.UseHttpsRedirection();
 app.UseCors("ReactApp");

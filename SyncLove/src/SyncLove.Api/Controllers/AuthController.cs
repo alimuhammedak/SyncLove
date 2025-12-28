@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using SyncLove.Api.Controllers.Base;
 using SyncLove.Application.DTOs.Auth;
 using SyncLove.Application.Interfaces;
 
@@ -7,13 +8,13 @@ namespace SyncLove.Api.Controllers;
 /// <summary>
 /// Authentication controller for user registration, login, and token management.
 /// </summary>
-[ApiController]
 [Route("api/[controller]")]
-public class AuthController : ControllerBase
+public class AuthController : ApiControllerBase
 {
     private readonly IAuthService _authService;
     
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, ILogger<AuthController> logger) 
+        : base(logger)
     {
         _authService = authService;
     }
@@ -23,16 +24,20 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("register")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request)
     {
+        Logger.LogInformation("Registration attempt for email: {Email}", request.Email);
+        
         var result = await _authService.RegisterAsync(request);
         
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+            Logger.LogWarning("Registration failed for {Email}: {Error}", request.Email, result.Error);
+            return HandleResult(result);
         }
         
+        Logger.LogInformation("User registered successfully: {Email}", request.Email);
         SetRefreshTokenCookie(result.Data!.RefreshToken);
         return Ok(result.Data);
     }
@@ -42,16 +47,24 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("login")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request)
     {
+        Logger.LogInformation("Login attempt for email: {Email}", request.Email);
+        
         var result = await _authService.LoginAsync(request);
         
         if (!result.IsSuccess)
         {
-            return Unauthorized(new { error = result.Error, code = result.ErrorCode });
+            Logger.LogWarning("Login failed for {Email}: {Error}", request.Email, result.Error);
+            return Unauthorized(new ApiErrorResponse(
+                result.ErrorCode ?? "LOGIN_FAILED",
+                result.Error ?? "Invalid credentials",
+                HttpContext.TraceIdentifier
+            ));
         }
         
+        Logger.LogInformation("User logged in successfully: {Email}", request.Email);
         SetRefreshTokenCookie(result.Data!.RefreshToken);
         return Ok(result.Data);
     }
@@ -61,14 +74,19 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("refresh")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<AuthResponse>> RefreshToken([FromBody] RefreshTokenRequest? request = null)
     {
         var refreshToken = request?.RefreshToken ?? Request.Cookies["refreshToken"];
         
         if (string.IsNullOrEmpty(refreshToken))
         {
-            return Unauthorized(new { error = "No refresh token provided.", code = "NO_TOKEN" });
+            Logger.LogWarning("Token refresh attempted without refresh token");
+            return Unauthorized(new ApiErrorResponse(
+                "NO_TOKEN",
+                "No refresh token provided",
+                HttpContext.TraceIdentifier
+            ));
         }
         
         var ipAddress = GetIpAddress();
@@ -76,9 +94,15 @@ public class AuthController : ControllerBase
         
         if (!result.IsSuccess)
         {
-            return Unauthorized(new { error = result.Error, code = result.ErrorCode });
+            Logger.LogWarning("Token refresh failed: {Error}", result.Error);
+            return Unauthorized(new ApiErrorResponse(
+                result.ErrorCode ?? "REFRESH_FAILED",
+                result.Error ?? "Token refresh failed",
+                HttpContext.TraceIdentifier
+            ));
         }
         
+        Logger.LogDebug("Token refreshed successfully");
         SetRefreshTokenCookie(result.Data!.RefreshToken);
         return Ok(result.Data);
     }
@@ -88,14 +112,18 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("revoke")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> RevokeToken([FromBody] RefreshTokenRequest? request = null)
     {
         var refreshToken = request?.RefreshToken ?? Request.Cookies["refreshToken"];
         
         if (string.IsNullOrEmpty(refreshToken))
         {
-            return BadRequest(new { error = "No refresh token provided.", code = "NO_TOKEN" });
+            return BadRequest(new ApiErrorResponse(
+                "NO_TOKEN",
+                "No refresh token provided",
+                HttpContext.TraceIdentifier
+            ));
         }
         
         var ipAddress = GetIpAddress();
@@ -103,12 +131,17 @@ public class AuthController : ControllerBase
         
         if (!result.IsSuccess)
         {
-            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+            Logger.LogWarning("Token revocation failed: {Error}", result.Error);
+            return BadRequest(new ApiErrorResponse(
+                result.ErrorCode ?? "REVOKE_FAILED",
+                result.Error ?? "Token revocation failed",
+                HttpContext.TraceIdentifier
+            ));
         }
         
-        // Clear cookie
+        Logger.LogInformation("Token revoked successfully");
         Response.Cookies.Delete("refreshToken");
-        return Ok(new { message = "Token revoked successfully." });
+        return Ok(new { message = "Token revoked successfully", traceId = HttpContext.TraceIdentifier });
     }
     
     private void SetRefreshTokenCookie(string token)
