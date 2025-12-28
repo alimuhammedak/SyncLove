@@ -23,7 +23,8 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSett
 // =============================================================================
 // DATABASE
 // =============================================================================
-
+// Add services to the container.
+// Add services to the container.
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -175,8 +176,8 @@ if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    // Uncomment to auto-migrate on startup:
-    // await db.Database.MigrateAsync();
+    // Auto-migrate on startup:
+    await db.Database.MigrateAsync();
 }
 
 app.Run();

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Heart, Mail, Lock, User, Loader2 } from 'lucide-react'
 import { useAuth } from '../auth'
+import { showSuccess, showError } from '../../lib/toast'
 
 type AuthMode = 'login' | 'register'
 
@@ -23,15 +24,19 @@ export function LoginPage() {
         try {
             if (mode === 'login') {
                 await signIn(email, password)
+                showSuccess('Giriş başarılı! Hoş geldiniz 💕')
             } else {
                 if (!displayName.trim()) {
-                    setError('Display name is required')
+                    showError('Görünen ad gereklidir')
                     return
                 }
                 await signUp(email, password, displayName)
+                showSuccess('Hesabınız oluşturuldu! Hoş geldiniz 💕')
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Authentication failed')
+            const errorMessage = err instanceof Error ? err.message : 'Kimlik doğrulama başarısız'
+            setError(errorMessage)
+            showError(errorMessage)
         }
     }
 

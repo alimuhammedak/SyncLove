@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEmotionGame } from './hooks/useEmotionGame';
 import { useVoiceChat } from './hooks/useVoiceChat';
+import { showSuccess, showError, showInfo } from '../../lib/toast';
 import {
     Crown,
     Copy,
@@ -69,6 +70,7 @@ export default function LobbyRoom({ sessionId, onGameStart, onLeave }: LobbyRoom
     const handleCopyCode = () => {
         navigator.clipboard.writeText(sessionId);
         setCopied(true);
+        showSuccess('Oda kodu kopyalandı!');
         setTimeout(() => setCopied(false), 2000);
     };
 
@@ -79,7 +81,12 @@ export default function LobbyRoom({ sessionId, onGameStart, onLeave }: LobbyRoom
     };
 
     const handleStartGame = async () => {
-        await startGame();
+        try {
+            await startGame();
+            showInfo('Oyun başlıyor!');
+        } catch {
+            showError('Oyun başlatılamadı');
+        }
     };
 
     const canStartGame = isHost && (players?.length || 0) >= 2;

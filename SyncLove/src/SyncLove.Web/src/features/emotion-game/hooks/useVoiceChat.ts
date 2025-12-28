@@ -90,23 +90,23 @@ export function useVoiceChat(): UseVoiceChatReturn {
 
         try {
             // Get token from backend
-            const token = tokenStorage.getAccessToken();
-            const response = await fetch(`${API_ENDPOINTS.baseUrl} /api/agora / token ? channelName = ${channelName} `, {
+            const authToken = tokenStorage.getAccessToken();
+            const response = await fetch(`${API_ENDPOINTS.baseUrl}/api/agora/token?channelName=${channelName}`, {
                 headers: {
-                    'Authorization': `Bearer ${token} `
+                    'Authorization': `Bearer ${authToken}`
                 }
             });
 
             if (!response.ok) throw new Error('Failed to fetch Agora token');
 
             const data = await response.json();
-            const { Token, AppId, UserId } = data;
+            const { token, appId, userId } = data;
 
             // Create local audio track
             localTrackRef.current = await AgoraRTC.createMicrophoneAudioTrack();
 
             // Join the channel
-            await clientRef.current.join(AppId, channelName, Token, UserId);
+            await clientRef.current.join(appId, channelName, token, userId);
 
             // Publish local track
             await clientRef.current.publish([localTrackRef.current]);
@@ -121,7 +121,7 @@ export function useVoiceChat(): UseVoiceChatReturn {
             setState(prev => ({
                 ...prev,
                 isConnecting: false,
-                error: `Sesli sohbete bağlanılamadı: ${error instanceof Error ? error.message : 'Bilinmeyen hata'} `
+                error: `Sesli sohbete bağlanılamadı: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`
             }));
         }
     }, []);

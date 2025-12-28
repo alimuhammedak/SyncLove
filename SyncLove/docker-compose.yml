@@ -7,9 +7,21 @@ services:
       POSTGRES_PASSWORD: Bls1912*
       POSTGRES_DB: SyncLoveDB
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - synclove_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: synclove-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@synclove.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
     restart: unless-stopped
 
 volumes:

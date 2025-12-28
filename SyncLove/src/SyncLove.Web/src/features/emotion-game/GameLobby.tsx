@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useEmotionGame } from './hooks/useEmotionGame';
+import { showSuccess, showError } from '../../lib/toast';
 import { Palette, Users, Plus, LogIn, Loader2, AlertCircle } from 'lucide-react';
 
 interface GameLobbyProps {
@@ -33,9 +34,11 @@ export default function GameLobby({ onJoinGame }: GameLobbyProps) {
             await connect();
             const newRoomCode = generateRoomCode();
             await joinGame(newRoomCode);
+            showSuccess(`Oda oluşturuldu: ${newRoomCode}`);
             onJoinGame(newRoomCode);
         } catch (error) {
             console.error('Failed to create room:', error);
+            showError('Oda oluşturulamadı. Lütfen tekrar deneyin.');
         } finally {
             setIsCreating(false);
         }
@@ -47,9 +50,11 @@ export default function GameLobby({ onJoinGame }: GameLobbyProps) {
         try {
             await connect();
             await joinGame(roomCode.toUpperCase());
+            showSuccess('Odaya katıldınız!');
             onJoinGame(roomCode.toUpperCase());
         } catch (error) {
             console.error('Failed to join room:', error);
+            showError('Odaya katılınamadı. Kod doğru mu?');
         } finally {
             setIsJoining(false);
         }

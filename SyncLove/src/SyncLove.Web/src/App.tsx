@@ -5,6 +5,7 @@
 import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth, LoginPage } from './features/auth'
 import { Heart } from 'lucide-react'
 import './index.css'
@@ -12,6 +13,7 @@ import './index.css'
 // Lazy load game modules for code splitting
 const Dashboard = lazy(() => import('./features/dashboard/index.tsx'))
 const EmotionGame = lazy(() => import('./features/emotion-game/index.tsx'))
+const ProfilePage = lazy(() => import('./features/profile/ProfilePage.tsx'))
 
 // React Query client for server state management
 const queryClient = new QueryClient({
@@ -58,6 +60,7 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/games" element={<EmotionGame />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="/memory-book" element={<div className="p-8 text-center text-white">Memory Book Coming Soon!</div>} />
         <Route path="/settings" element={<div className="p-8 text-center text-white">Settings Coming Soon!</div>} />
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -72,6 +75,7 @@ function AppContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <Toaster position="top-center" />
       <BrowserRouter>
         <AuthProvider>
           <AppContent />
