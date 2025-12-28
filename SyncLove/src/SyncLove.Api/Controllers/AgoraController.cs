@@ -59,6 +59,7 @@ public class AgoraController : ApiControllerBase
             
             var token = _agoraService.GenerateRtcToken(channelName, userId.ToString());
             var appId = _agoraService.GetAppId();
+            var uid = AgoraTokenService.ParseUserId(userId.ToString()); // Get the same numeric UID used for the token
 
             if (string.IsNullOrEmpty(appId))
             {
@@ -70,14 +71,16 @@ public class AgoraController : ApiControllerBase
                 ));
             }
 
-            Logger.LogDebug("Agora token generated successfully for channel {ChannelName}", channelName);
+            Logger.LogDebug("Agora token generated successfully for channel {ChannelName} with UID {Uid}", 
+                channelName, uid);
             
             return Ok(new
             {
                 token,
                 appId,
                 channelName,
-                userId = userId.ToString()
+                userId = userId.ToString(),
+                uid = uid
             });
         }
         catch (Exception ex)

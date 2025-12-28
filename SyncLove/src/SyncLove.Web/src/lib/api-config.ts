@@ -24,6 +24,9 @@ export const API_ENDPOINTS = {
         game: `${API_BASE_URL}/hubs/game`,
         emotionGame: `${API_BASE_URL}/hubs/emotion-game`,
     },
+    agora: {
+        token: `${API_BASE_URL}/api/agora/token`,
+    },
     baseUrl: API_BASE_URL,
 } as const;
 

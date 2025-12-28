@@ -84,29 +84,45 @@ export function useVoiceChat(): UseVoiceChatReturn {
     }, []);
 
     const joinChannel = useCallback(async (channelName: string) => {
-        if (!clientRef.current) return;
+        if (!clientRef.current || state.isConnected || state.isConnecting) return;
 
         setState(prev => ({ ...prev, isConnecting: true, error: null }));
 
         try {
-            // Get token from backend
             const authToken = tokenStorage.getAccessToken();
-            const response = await fetch(`${API_ENDPOINTS.baseUrl}/api/agora/token?channelName=${channelName}`, {
+            if (!authToken) throw new Error('Oturum açılmamış');
+
+            // Fetch token from backend
+            const response = await fetch(`${API_ENDPOINTS.agora.token}?channelName=${channelName}`, {
                 headers: {
                     'Authorization': `Bearer ${authToken}`
                 }
             });
 
-            if (!response.ok) throw new Error('Failed to fetch Agora token');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Token alınamadı');
+            }
 
-            const data = await response.json();
-            const { token, appId, userId } = data;
+            const { token, appId, uid } = await response.json();
 
-            // Create local audio track
-            localTrackRef.current = await AgoraRTC.createMicrophoneAudioTrack();
+            console.log('DEBUG: Joining Agora with:', {
+                appId,
+                channelName,
+                uid
+            });
 
-            // Join the channel
-            await clientRef.current.join(appId, channelName, token, userId);
+            // ALERT: Check this AppID in console
+            console.error('CRITICAL DEBUG - AGORA APPID:', appId);
+            console.error('CRITICAL DEBUG - AGORA TOKEN:', token);
+
+            // Create local audio track if not already exists
+            if (!localTrackRef.current) {
+                localTrackRef.current = await AgoraRTC.createMicrophoneAudioTrack();
+            }
+
+            // Join the channel with numeric UID from backend
+            await clientRef.current.join(appId, channelName, token, uid);
 
             // Publish local track
             await clientRef.current.publish([localTrackRef.current]);
@@ -116,15 +132,16 @@ export function useVoiceChat(): UseVoiceChatReturn {
                 isConnected: true,
                 isConnecting: false,
             }));
-        } catch (error) {
+            console.log('DEBUG: Agora Join Success');
+        } catch (error: any) {
             console.error('Failed to join voice channel:', error);
             setState(prev => ({
                 ...prev,
                 isConnecting: false,
-                error: `Sesli sohbete bağlanılamadı: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`
+                error: `Bağlantı hatası: ${error.message || 'Bilinmeyen hata'}`
             }));
         }
-    }, []);
+    }, [state.isConnected, state.isConnecting]);
 
     const leaveChannel = useCallback(async () => {
         if (localTrackRef.current) {

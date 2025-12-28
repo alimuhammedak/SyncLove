@@ -69,7 +69,7 @@ public abstract class ApiControllerBase : ControllerBase
         return successStatusCode switch
         {
             201 => StatusCode(201, result.Data),
-            204 => NoContent() as ActionResult<T>,
+            204 => (NoContent() as ActionResult<T>)!,
             _ => Ok(result.Data)
         };
     }

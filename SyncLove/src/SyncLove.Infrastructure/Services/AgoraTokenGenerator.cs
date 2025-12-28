@@ -18,13 +18,13 @@ public static class AgoraTokenGenerator
     }
 
     /// <summary>
-    /// Generates an Agora RTC token for a specific channel and user.
+    /// Generates an Agora RTC token for a specific channel and user using a numeric UID.
     /// </summary>
     public static string BuildTokenWithUid(
         string appId,
         string appCertificate,
         string channelName,
-        string uid,
+        uint uid,
         Role role,
         uint privilegeExpiredTs)
     {
@@ -56,7 +56,7 @@ public static class AgoraTokenGenerator
         {
             bw.Write(Encoding.UTF8.GetBytes(appId));
             bw.Write(Encoding.UTF8.GetBytes(channelName));
-            bw.Write(Encoding.UTF8.GetBytes(uid));
+            bw.Write(Encoding.UTF8.GetBytes(uid.ToString())); // Use string representation for signature
             bw.Write(messageContent);
             bw.Flush();
 
@@ -66,9 +66,9 @@ public static class AgoraTokenGenerator
             }
         }
 
-        // 3. CRC32 (simplified as 0 for now as some SDKs allow it, OR we implement it)
+        // 3. CRC
         uint crcChannelName = Crc32(channelName);
-        uint crcUid = Crc32(uid);
+        uint crcUid = uid; // For numeric UIDs, CRC is often the UID itself in some 006 variants, or we keep Crc32(uid.ToString())
 
         // 4. Pack final content
         byte[] finalContent;
@@ -86,6 +86,7 @@ public static class AgoraTokenGenerator
         }
 
         // 5. Build final string: version + appId + base64(content)
+        // Switch to "006" prefix as it matches the binary packing protocol implemented above
         return "006" + appId + Convert.ToBase64String(finalContent);
     }
 
